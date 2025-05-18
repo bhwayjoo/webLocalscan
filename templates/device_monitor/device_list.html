@@ -1,0 +1,304 @@
+{% extends 'base.html' %} {% block title %}Devices - Network Monitor{% endblock
+%} {% block page_title %}Network Devices{% endblock %} {% block content %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">All Devices</h5>
+    <div>
+      <button
+        type="button"
+        class="btn btn-primary"
+        data-bs-toggle="modal"
+        data-bs-target="#scanNetworkModal"
+      >
+        <i class="fas fa-search me-1"></i> Scan Network
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>IP Address</th>
+            <th>Hostname</th>
+            <th>MAC Address</th>
+            <th>Vendor</th>
+            <th>Status</th>
+            <th>Last Seen</th>
+            <th>Open Ports</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for device in devices %}
+          <tr>
+            <td>{{ device.ip_address }}</td>
+            <td>{{ device.hostname|default:"Unknown" }}</td>
+            <td>{{ device.mac_address|default:"N/A" }}</td>
+            <td>{{ device.vendor|default:"N/A" }}</td>
+            <td>
+              <span
+                class="status-badge {% if device.status == 'active' %}bg-success{% else %}bg-secondary{% endif %}"
+              >
+                {{ device.status }}
+              </span>
+            </td>
+            <td>{{ device.last_seen|date:"M d, Y H:i" }}</td>
+            <td>{{ device.ports.count }}</td>
+            <td>
+              <a
+                href="{% url 'device_detail' device.id %}"
+                class="btn btn-sm btn-outline-primary"
+              >
+                <i class="fas fa-eye"></i> Details
+              </a>
+              <button
+                class="btn btn-sm btn-outline-info scan-device-btn"
+                data-ip="{{ device.ip_address }}"
+              >
+                <i class="fas fa-search"></i> Scan
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center">
+              No devices found in the network
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Scan Network Modal -->
+<div
+  class="modal fade"
+  id="scanNetworkModal"
+  tabindex="-1"
+  aria-labelledby="scanNetworkModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="scanNetworkModalLabel">Scan Network</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="network-scan-form">
+          <div class="mb-3">
+            <label for="network-range" class="form-label">Network Range</label>
+            <input
+              type="text"
+              class="form-control"
+              id="network-range"
+              name="network_range"
+              placeholder="192.168.1.0/24"
+              value="192.168.1.0/24"
+            />
+            <div class="form-text">Enter network range in CIDR notation</div>
+          </div>
+        </form>
+        <div id="scan-progress" class="d-none">
+          <div class="progress mb-3">
+            <div
+              class="progress-bar progress-bar-striped progress-bar-animated"
+              role="progressbar"
+              style="width: 100%"
+            ></div>
+          </div>
+          <p class="text-center" id="scan-status-text">Scanning network...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="start-network-scan-btn"
+        >
+          Start Scan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scan Device Modal -->
+<div
+  class="modal fade"
+  id="scanDeviceModal"
+  tabindex="-1"
+  aria-labelledby="scanDeviceModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="scanDeviceModalLabel">Scan Device</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="device-scan-form">
+          <input type="hidden" id="device-ip" name="target" />
+          <div class="mb-3">
+            <label for="port-range" class="form-label">Port Range</label>
+            <input
+              type="text"
+              class="form-control"
+              id="port-range"
+              name="port_range"
+              placeholder="1-1024"
+              value="1-1024"
+            />
+            <div class="form-text">
+              Enter port range (e.g., 1-1024) or specific ports (e.g.,
+              22,80,443)
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="protocol" class="form-label">Protocol</label>
+            <select class="form-select" id="protocol" name="protocol">
+              <option value="tcp">TCP</option>
+              <option value="udp">UDP</option>
+            </select>
+          </div>
+        </form>
+        <div id="device-scan-progress" class="d-none">
+          <div class="progress mb-3">
+            <div
+              class="progress-bar progress-bar-striped progress-bar-animated"
+              role="progressbar"
+              style="width: 100%"
+            ></div>
+          </div>
+          <p class="text-center" id="device-scan-status-text">
+            Scanning device...
+          </p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="start-device-scan-btn"
+        >
+          Start Scan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  $(document).ready(function () {
+    // Handle network scan
+    $("#start-network-scan-btn").click(function () {
+      const networkRange = $("#network-range").val();
+
+      // Show progress
+      $("#network-scan-form").addClass("d-none");
+      $("#scan-progress").removeClass("d-none");
+      $("#start-network-scan-btn").prop("disabled", true);
+
+      // Make API call
+      $.ajax({
+        url: "/api/devices/discover/",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ network_range: networkRange }),
+        success: function (data) {
+          $("#scan-status-text").text(
+            `Scan completed! Found ${data.devices.length} devices.`
+          );
+
+          // Reload page after a delay
+          setTimeout(function () {
+            location.reload();
+          }, 2000);
+        },
+        error: function () {
+          $("#scan-status-text").text("Scan failed. Please try again.");
+
+          // Re-enable form
+          setTimeout(function () {
+            $("#network-scan-form").removeClass("d-none");
+            $("#scan-progress").addClass("d-none");
+            $("#start-network-scan-btn").prop("disabled", false);
+          }, 2000);
+        },
+      });
+    });
+
+    // Handle device scan button clicks
+    $(".scan-device-btn").click(function () {
+      const ip = $(this).data("ip");
+      $("#device-ip").val(ip);
+      $("#scanDeviceModalLabel").text(`Scan Device: ${ip}`);
+      $("#scanDeviceModal").modal("show");
+    });
+
+    // Handle device scan
+    $("#start-device-scan-btn").click(function () {
+      const ip = $("#device-ip").val();
+      const portRange = $("#port-range").val();
+      const protocol = $("#protocol").val();
+
+      // Show progress
+      $("#device-scan-form").addClass("d-none");
+      $("#device-scan-progress").removeClass("d-none");
+      $("#start-device-scan-btn").prop("disabled", true);
+
+      // Make API call
+      $.ajax({
+        url: "/api/ports/scan/",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({
+          target: ip,
+          port_range: portRange,
+          protocol: protocol,
+        }),
+        success: function (data) {
+          $("#device-scan-status-text").text(
+            `Scan completed! Found ${data.ports.length} open ports.`
+          );
+
+          // Reload page after a delay
+          setTimeout(function () {
+            location.reload();
+          }, 2000);
+        },
+        error: function () {
+          $("#device-scan-status-text").text("Scan failed. Please try again.");
+
+          // Re-enable form
+          setTimeout(function () {
+            $("#device-scan-form").removeClass("d-none");
+            $("#device-scan-progress").addClass("d-none");
+            $("#start-device-scan-btn").prop("disabled", false);
+          }, 2000);
+        },
+      });
+    });
+  });
+</script>
+{% endblock %}

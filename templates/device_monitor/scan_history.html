@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Scan History - Network Monitor{% endblock %}
+
+{% block page_title %}Scan History{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">Scan History</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Scan Type</th>
+            <th>Target</th>
+            <th>Start Time</th>
+            <th>End Time</th>
+            <th>Duration</th>
+            <th>Devices Found</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for scan in scans %}
+          <tr>
+            <td>{{ scan.scan_type|title }}</td>
+            <td>{{ scan.target_range }}</td>
+            <td>{{ scan.start_time|date:"M d, Y H:i:s" }}</td>
+            <td>
+              {% if scan.end_time %}
+                {{ scan.end_time|date:"M d, Y H:i:s" }}
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+            <td>
+              {% if scan.end_time %}
+                {{ scan.end_time|timeuntil:scan.start_time }}
+              {% else %}
+                In progress
+              {% endif %}
+            </td>
+            <td>{{ scan.devices_found }}</td>
+            <td>
+              <span
+                class="status-badge {% if scan.status == 'completed' %}bg-success{% elif scan.status == 'failed' %}bg-danger{% else %}bg-warning{% endif %}"
+              >
+                {{ scan.status|title }}
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center">No scan history available.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

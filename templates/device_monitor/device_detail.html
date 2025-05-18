@@ -1,0 +1,382 @@
+{% extends 'base.html' %} {% block title %}Device Details - Network Monitor{%
+endblock %} {% block page_title %}Device Details{% endblock %} {% block content
+%}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">
+      <i class="fas fa-server me-2"></i> {{ device.hostname|default:"Unknown
+      Device" }}
+    </h5>
+    <div>
+      <button
+        type="button"
+        class="btn btn-primary"
+        id="scan-ports-btn"
+        data-ip="{{ device.ip_address }}"
+      >
+        <i class="fas fa-search me-1"></i> Scan Ports
+      </button>
+      <button
+        type="button"
+        class="btn btn-info"
+        id="scan-services-btn"
+        data-ip="{{ device.ip_address }}"
+      >
+        <i class="fas fa-cogs me-1"></i> Detect Services
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <table class="table">
+          <tbody>
+            <tr>
+              <th>IP Address</th>
+              <td>{{ device.ip_address }}</td>
+            </tr>
+            <tr>
+              <th>MAC Address</th>
+              <td>{{ device.mac_address|default:"N/A" }}</td>
+            </tr>
+            <tr>
+              <th>Hostname</th>
+              <td>{{ device.hostname|default:"Unknown" }}</td>
+            </tr>
+            <tr>
+              <th>Vendor</th>
+              <td>{{ device.vendor|default:"N/A" }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col-md-6">
+        <table class="table">
+          <tbody>
+            <tr>
+              <th>Status</th>
+              <td>
+                <span
+                  class="status-badge {% if device.status == 'active' %}bg-success{% else %}bg-secondary{% endif %}"
+                >
+                  {{ device.status }}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <th>First Seen</th>
+              <td>{{ device.first_seen|date:"M d, Y H:i" }}</td>
+            </tr>
+            <tr>
+              <th>Last Seen</th>
+              <td>{{ device.last_seen|date:"M d, Y H:i" }}</td>
+            </tr>
+            <tr>
+              <th>Open Ports</th>
+              <td>{{ ports.count }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">Open Ports and Services</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Port</th>
+            <th>Protocol</th>
+            <th>Service</th>
+            <th>Product</th>
+            <th>Version</th>
+            <th>Status</th>
+            <th>Last Scanned</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for port in ports %}
+          <tr>
+            <td>{{ port.port_number }}</td>
+            <td>{{ port.protocol }}</td>
+            <td>{{ port.service|default:"Unknown" }}</td>
+            <td>{{ port.product|default:"N/A" }}</td>
+            <td>{{ port.version|default:"N/A" }}</td>
+            <td>
+              <span
+                class="status-badge {% if port.status == 'open' %}bg-success{% else %}bg-secondary{% endif %}"
+              >
+                {{ port.status }}
+              </span>
+            </td>
+            <td>{{ port.last_scanned|date:"M d, Y H:i" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center">
+              No open ports found. Click "Scan Ports" to detect open ports.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Scan Ports Modal -->
+<div
+  class="modal fade"
+  id="scanPortsModal"
+  tabindex="-1"
+  aria-labelledby="scanPortsModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="scanPortsModalLabel">Scan Ports</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="scan-ports-form">
+          <input
+            type="hidden"
+            id="target-ip"
+            name="target"
+            value="{{ device.ip_address }}"
+          />
+          <div class="mb-3">
+            <label for="port-range" class="form-label">Port Range</label>
+            <input
+              type="text"
+              class="form-control"
+              id="port-range"
+              name="port_range"
+              placeholder="1-1024"
+              value="1-1024"
+            />
+            <div class="form-text">
+              Enter port range (e.g., 1-1024) or specific ports (e.g.,
+              22,80,443)
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="protocol" class="form-label">Protocol</label>
+            <select class="form-select" id="protocol" name="protocol">
+              <option value="tcp">TCP</option>
+              <option value="udp">UDP</option>
+            </select>
+          </div>
+        </form>
+        <div id="scan-progress" class="d-none">
+          <div class="progress mb-3">
+            <div
+              class="progress-bar progress-bar-striped progress-bar-animated"
+              role="progressbar"
+              style="width: 100%"
+            ></div>
+          </div>
+          <p class="text-center" id="scan-status-text">Scanning ports...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+        <button type="button" class="btn btn-primary" id="start-port-scan-btn">
+          Start Scan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detect Services Modal -->
+<div
+  class="modal fade"
+  id="detectServicesModal"
+  tabindex="-1"
+  aria-labelledby="detectServicesModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="detectServicesModalLabel">
+          Detect Services
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p>This will scan for detailed service information on open ports.</p>
+        <form id="detect-services-form">
+          <input
+            type="hidden"
+            id="service-target-ip"
+            name="target"
+            value="{{ device.ip_address }}"
+          />
+          <div class="mb-3">
+            <label for="service-ports" class="form-label">Ports</label>
+            <input
+              type="text"
+              class="form-control"
+              id="service-ports"
+              name="ports"
+              placeholder="All open ports"
+            />
+            <div class="form-text">
+              Leave empty to scan all open ports, or specify ports (e.g.,
+              22,80,443)
+            </div>
+          </div>
+        </form>
+        <div id="services-scan-progress" class="d-none">
+          <div class="progress mb-3">
+            <div
+              class="progress-bar progress-bar-striped progress-bar-animated"
+              role="progressbar"
+              style="width: 100%"
+            ></div>
+          </div>
+          <p class="text-center" id="services-scan-status-text">
+            Detecting services...
+          </p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="start-services-scan-btn"
+        >
+          Start Scan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  $(document).ready(function () {
+    // Handle scan ports button
+    $("#scan-ports-btn").click(function () {
+      $("#scanPortsModal").modal("show");
+    });
+
+    // Handle scan services button
+    $("#scan-services-btn").click(function () {
+      $("#detectServicesModal").modal("show");
+    });
+
+    // Handle port scan
+    $("#start-port-scan-btn").click(function () {
+      const target = $("#target-ip").val();
+      const portRange = $("#port-range").val();
+      const protocol = $("#protocol").val();
+
+      // Show progress
+      $("#scan-ports-form").addClass("d-none");
+      $("#scan-progress").removeClass("d-none");
+      $("#start-port-scan-btn").prop("disabled", true);
+
+      // Make API call
+      $.ajax({
+        url: "/api/ports/scan/",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({
+          target: target,
+          port_range: portRange,
+          protocol: protocol,
+        }),
+        success: function (data) {
+          $("#scan-status-text").text(
+            `Scan completed! Found ${data.ports.length} open ports.`
+          );
+
+          // Reload page after a delay
+          setTimeout(function () {
+            location.reload();
+          }, 2000);
+        },
+        error: function () {
+          $("#scan-status-text").text("Scan failed. Please try again.");
+
+          // Re-enable form
+          setTimeout(function () {
+            $("#scan-ports-form").removeClass("d-none");
+            $("#scan-progress").addClass("d-none");
+            $("#start-port-scan-btn").prop("disabled", false);
+          }, 2000);
+        },
+      });
+    });
+
+    // Handle service detection
+    $("#start-services-scan-btn").click(function () {
+      const target = $("#service-target-ip").val();
+      const ports = $("#service-ports").val();
+
+      // Show progress
+      $("#detect-services-form").addClass("d-none");
+      $("#services-scan-progress").removeClass("d-none");
+      $("#start-services-scan-btn").prop("disabled", true);
+
+      // Make API call
+      $.ajax({
+        url: "/api/ports/detect_services/",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({
+          target: target,
+          ports: ports,
+        }),
+        success: function (data) {
+          const servicesCount = Object.keys(data.services).length;
+          $("#services-scan-status-text").text(
+            `Scan completed! Detected services on ${servicesCount} ports.`
+          );
+
+          // Reload page after a delay
+          setTimeout(function () {
+            location.reload();
+          }, 2000);
+        },
+        error: function () {
+          $("#services-scan-status-text").text(
+            "Service detection failed. Please try again."
+          );
+
+          // Re-enable form
+          setTimeout(function () {
+            $("#detect-services-form").removeClass("d-none");
+            $("#services-scan-progress").addClass("d-none");
+            $("#start-services-scan-btn").prop("disabled", false);
+          }, 2000);
+        },
+      });
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,323 @@
+{% extends 'base.html' %} {% block title %}Dashboard - Network Monitor{%
+endblock %} {% block page_title %}Dashboard{% endblock %} {% block content %}
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="device-icon text-primary">
+            <i class="fas fa-laptop"></i>
+          </div>
+          <div>
+            <h6 class="card-subtitle mb-1 text-muted">Total Devices</h6>
+            <h2 class="card-title mb-0">{{ devices_count }}</h2>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="device-icon text-success">
+            <i class="fas fa-wifi"></i>
+          </div>
+          <div>
+            <h6 class="card-subtitle mb-1 text-muted">Active Devices</h6>
+            <h2 class="card-title mb-0">{{ active_devices }}</h2>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="device-icon text-warning">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <div>
+            <h6 class="card-subtitle mb-1 text-muted">Open Ports</h6>
+            <h2 class="card-title mb-0" id="open-ports-count">Loading...</h2>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <h5 class="mb-0">Network Devices</h5>
+        <button
+          type="button"
+          class="btn btn-primary"
+          data-bs-toggle="modal"
+          data-bs-target="#scanModal"
+        >
+          <i class="fas fa-search me-1"></i> Scan Network
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>IP Address</th>
+                <th>Hostname</th>
+                <th>MAC Address</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="devices-table-body">
+              <tr>
+                <td colspan="5" class="text-center">Loading devices...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Recent Scans</h5>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for scan in recent_scans %}
+          <li class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="mb-1">{{ scan.scan_type|title }} Scan</h6>
+                <small>{{ scan.target_range }}</small>
+              </div>
+              <span
+                class="status-badge {% if scan.status == 'completed' %}bg-success{% elif scan.status == 'failed' %}bg-danger{% else %}bg-warning{% endif %}"
+              >
+                {{ scan.status|title }}
+              </span>
+            </div>
+            <small class="text-muted"
+              >{{ scan.start_time|date:"M d, Y H:i" }}</small
+            >
+          </li>
+          {% empty %}
+          <li class="list-group-item text-center">No recent scans</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scan Network Modal -->
+<div
+  class="modal fade"
+  id="scanModal"
+  tabindex="-1"
+  aria-labelledby="scanModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="scanModalLabel">Scan Network</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="scan-form">
+          <div class="mb-3">
+            <label for="network-range" class="form-label">Network Range</label>
+            <input
+              type="text"
+              class="form-control"
+              id="network-range"
+              placeholder="192.168.1.0/24"
+              value="192.168.1.0/24"
+            />
+            <div class="form-text">Enter network range in CIDR notation</div>
+          </div>
+        </form>
+        <div id="scan-progress" class="d-none">
+          <div class="progress mb-3">
+            <div
+              class="progress-bar progress-bar-striped progress-bar-animated"
+              role="progressbar"
+              style="width: 100%"
+            ></div>
+          </div>
+          <p class="text-center" id="scan-status">Scanning network...</p>
+        </div>
+        <div id="scan-results" class="d-none">
+          <div class="alert alert-success">
+            <span id="devices-found">0</span> devices found on the network
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+        <button type="button" class="btn btn-primary" id="start-scan-btn">
+          Start Scan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  $(document).ready(function () {
+    // Load devices
+    function loadDevices() {
+      $.ajax({
+        url: "/api/devices/",
+        type: "GET",
+        success: function (data) {
+          let tableContent = "";
+          let portsCount = 0;
+
+          if (data.length === 0) {
+            tableContent =
+              '<tr><td colspan="5" class="text-center">No devices found</td></tr>';
+          } else {
+            data.forEach(function (device) {
+              portsCount += device.ports.length;
+              tableContent += `
+                                <tr>
+                                    <td>${device.ip_address}</td>
+                                    <td>${device.hostname || "Unknown"}</td>
+                                    <td>${device.mac_address || "N/A"}</td>
+                                    <td>
+                                        <span class="status-badge ${
+                                          device.status === "active"
+                                            ? "bg-success"
+                                            : "bg-secondary"
+                                        }">
+                                            ${device.status}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="/devices/${
+                                          device.id
+                                        }/" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-info scan-ports-btn" data-ip="${
+                                          device.ip_address
+                                        }">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+            });
+          }
+
+          $("#devices-table-body").html(tableContent);
+          $("#open-ports-count").text(portsCount);
+
+          // Attach event handlers to scan buttons
+          $(".scan-ports-btn").click(function () {
+            const ip = $(this).data("ip");
+            scanPorts(ip);
+          });
+        },
+        error: function () {
+          $("#devices-table-body").html(
+            '<tr><td colspan="5" class="text-center text-danger">Error loading devices</td></tr>'
+          );
+        },
+      });
+    }
+
+    // Start network scan
+    $("#start-scan-btn").click(function () {
+      const networkRange = $("#network-range").val();
+
+      // Show progress
+      $("#scan-form").addClass("d-none");
+      $("#scan-progress").removeClass("d-none");
+      $("#scan-results").addClass("d-none");
+      $("#start-scan-btn").prop("disabled", true);
+
+      // Make API call
+      $.ajax({
+        url: "/api/devices/discover/",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ network_range: networkRange }),
+        success: function (data) {
+          // Show results
+          $("#scan-progress").addClass("d-none");
+          $("#scan-results").removeClass("d-none");
+          $("#devices-found").text(data.devices.length);
+
+          // Re-enable form
+          setTimeout(function () {
+            $("#scan-form").removeClass("d-none");
+            $("#start-scan-btn").prop("disabled", false);
+          }, 2000);
+
+          // Reload devices
+          loadDevices();
+        },
+        error: function () {
+          // Show error
+          $("#scan-progress").addClass("d-none");
+          $("#scan-results")
+            .removeClass("d-none")
+            .html(
+              '<div class="alert alert-danger">Scan failed. Please try again.</div>'
+            );
+
+          // Re-enable form
+          setTimeout(function () {
+            $("#scan-form").removeClass("d-none");
+            $("#start-scan-btn").prop("disabled", false);
+          }, 2000);
+        },
+      });
+    });
+
+    // Scan ports on a device
+    function scanPorts(ip) {
+      if (!confirm(`Scan ports on ${ip}?`)) {
+        return;
+      }
+
+      $.ajax({
+        url: "/api/ports/scan/",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ target: ip }),
+        success: function (data) {
+          alert(`Scan completed. Found ${data.ports.length} open ports.`);
+          loadDevices();
+        },
+        error: function () {
+          alert("Port scan failed. Please try again.");
+        },
+      });
+    }
+
+    // Load initial data
+    loadDevices();
+  });
+</script>
+{% endblock %}
