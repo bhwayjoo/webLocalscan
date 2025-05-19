@@ -1,5 +1,10 @@
-{% extends 'base.html' %} {% block title %}Dashboard - Network Monitor{%
-endblock %} {% block page_title %}Dashboard{% endblock %} {% block content %}
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Network Monitor{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
 <div class="row mb-4">
   <div class="col-md-4">
     <div class="card">
@@ -180,7 +185,9 @@ endblock %} {% block page_title %}Dashboard{% endblock %} {% block content %}
     </div>
   </div>
 </div>
-{% endblock %} {% block extra_js %}
+{% endblock %}
+
+{% block extra_js %}
 <script>
   $(document).ready(function () {
     // Load devices
