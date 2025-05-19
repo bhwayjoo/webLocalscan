@@ -242,5 +242,72 @@ class NetworkScanner:
             scan.end_time = timezone.now()
             scan.save()
             raise e
+            
+    @staticmethod
+    def monitor_network(network_range):
+        """
+        Monitor network for new devices and status changes.
+        
+        Args:
+            network_range (str): Network range in CIDR notation (e.g., "192.168.1.0/24")
+            
+        Returns:
+            dict: Dictionary containing monitoring results
+        """
+        from .models import Alert
+        
+        # Get currently known devices
+        known_devices = {device.ip_address: device for device in Device.objects.all()}
+        
+        # Discover current devices on the network
+        discovered_devices = NetworkScanner.discover_devices(network_range)
+        
+        # Check for new devices and create alerts
+        results = {
+            'total_devices': len(discovered_devices),
+            'new_devices': [],
+            'alerts_generated': 0
+        }
+        
+        # Process discovered devices
+        for device_info in discovered_devices:
+            ip_address = device_info['ip_address']
+            
+            # If this is first time we're seeing this device
+            if ip_address not in known_devices:
+                try:
+                    # Get the newly created device from the database
+                    device = Device.objects.get(ip_address=ip_address)
+                    
+                    # Create an alert for the new device
+                    alert = Alert.objects.create(
+                        device=device,
+                        alert_type='new_device',
+                        severity='warning',
+                        message=f"New device detected on network: {device.hostname or 'Unknown'} ({device.ip_address})",
+                        details={
+                            'ip_address': device.ip_address,
+                            'mac_address': device.mac_address,
+                            'hostname': device.hostname,
+                            'first_seen': device.first_seen.isoformat()
+                        }
+                    )
+                    
+                    results['new_devices'].append({
+                        'ip_address': device.ip_address,
+                        'hostname': device.hostname,
+                        'mac_address': device.mac_address,
+                        'alert_id': alert.id
+                    })
+                    
+                    results['alerts_generated'] += 1
+                except Device.DoesNotExist:
+                    # This shouldn't happen if discover_devices is working correctly
+                    pass
+                except Exception as e:
+                    # Log the error but continue
+                    pass
+        
+        return results
 
 

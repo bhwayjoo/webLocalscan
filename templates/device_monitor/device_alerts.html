@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block title %}Alerts - Network Monitor{% endblock %}
+
+{% block page_title %}Network Alerts{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Device Alerts</h5>
+    <div>
+      <button type="button" class="btn btn-primary" id="mark-all-read-btn">
+        <i class="fas fa-check-double me-1"></i> Mark All as Read
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Type</th>
+            <th>Severity</th>
+            <th>Device</th>
+            <th>Message</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for alert in alerts %}
+          <tr class="{% if not alert.is_read %}table-warning{% endif %}">
+            <td>{{ alert.timestamp|date:"M d, Y H:i:s" }}</td>
+            <td>
+              <span class="badge bg-primary">{{ alert.get_alert_type_display }}</span>
+            </td>
+            <td>
+              <span class="badge 
+                {% if alert.severity == 'critical' %}bg-danger
+                {% elif alert.severity == 'warning' %}bg-warning
+                {% else %}bg-info{% endif %}">
+                {{ alert.get_severity_display }}
+              </span>
+            </td>
+            <td>
+              {% if alert.device %}
+              <a href="{% url 'device_detail' alert.device.id %}">
+                {{ alert.device.hostname|default:"Unknown" }} ({{ alert.device.ip_address }})
+              </a>
+              {% else %}
+              N/A
+              {% endif %}
+            </td>
+            <td>{{ alert.message }}</td>
+            <td>
+              {% if not alert.is_read %}
+              <button 
+                class="btn btn-sm btn-outline-primary mark-read-btn" 
+                data-alert-id="{{ alert.id }}"
+              >
+                <i class="fas fa-check"></i> Mark as Read
+              </button>
+              {% else %}
+              <span class="text-muted"><i class="fas fa-check"></i> Read</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center">No alerts found</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    // Mark single alert as read
+    $('.mark-read-btn').click(function() {
+      const alertId = $(this).data('alert-id');
+      const row = $(this).closest('tr');
+      
+      $.ajax({
+        url: `/api/alerts/${alertId}/mark_as_read/`,
+        type: 'POST',
+        headers: {
+          'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function() {
+          row.removeClass('table-warning');
+          row.find('.mark-read-btn').replaceWith(
+            '<span class="text-muted"><i class="fas fa-check"></i> Read</span>'
+          );
+          
+          // Update unread count in navbar
+          updateUnreadCount(-1);
+        },
+        error: function() {
+          alert('Failed to mark alert as read');
+        }
+      });
+    });
+    
+    // Mark all alerts as read
+    $('#mark-all-read-btn').click(function() {
+      $.ajax({
+        url: '/api/alerts/mark_all_as_read/',
+        type: 'POST',
+        headers: {
+          'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function() {
+          $('.table-warning').removeClass('table-warning');
+          $('.mark-read-btn').each(function() {
+            $(this).replaceWith(
+              '<span class="text-muted"><i class="fas fa-check"></i> Read</span>'
+            );
+          });
+          
+          // Update unread count in navbar
+          updateUnreadCount(0, true);
+        },
+        error: function() {
+          alert('Failed to mark all alerts as read');
+        }
+      });
+    });
+    
+    // Helper function to update the unread count in the navbar
+    function updateUnreadCount(change, resetToZero = false) {
+      let countElem = $('#alert-count');
+      let count = parseInt(countElem.text());
+      
+      if (resetToZero) {
+        countElem.text('0');
+        if (count > 0) {
+          countElem.hide();
+        }
+      } else {
+        count += change;
+        countElem.text(count);
+        
+        if (count <= 0) {
+          countElem.hide();
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}

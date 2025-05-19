@@ -4,7 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
 
-from .models import Device, Port, ScanHistory
+from .models import Device, Port, ScanHistory, Alert
 from .serializers import DeviceSerializer, PortSerializer, ScanHistorySerializer
 from .utils import NetworkScanner
 
@@ -14,14 +14,17 @@ def dashboard(request):
     context = {
         'devices_count': Device.objects.count(),
         'active_devices': Device.objects.filter(status='active').count(),
-        'recent_scans': ScanHistory.objects.all()[:5]
+        'recent_scans': ScanHistory.objects.all()[:5],
+        'recent_alerts': Alert.objects.all().order_by('-timestamp')[:5],
+        'unread_count': Alert.objects.filter(is_read=False).count()
     }
     return render(request, 'device_monitor/dashboard.html', context)
 
 def device_list(request):
     """View for displaying all devices"""
     context = {
-        'devices': Device.objects.all()
+        'devices': Device.objects.all(),
+        'unread_count': Alert.objects.filter(is_read=False).count()
     }
     return render(request, 'device_monitor/device_list.html', context)
 
@@ -30,16 +33,26 @@ def device_detail(request, device_id):
     device = Device.objects.get(id=device_id)
     context = {
         'device': device,
-        'ports': device.ports.all()
+        'ports': device.ports.all(),
+        'unread_count': Alert.objects.filter(is_read=False).count()
     }
     return render(request, 'device_monitor/device_detail.html', context)
 
 def scan_history(request):
     """View for displaying scan history"""
     context = {
-        'scans': ScanHistory.objects.all()
+        'scans': ScanHistory.objects.all(),
+        'unread_count': Alert.objects.filter(is_read=False).count()
     }
     return render(request, 'device_monitor/scan_history.html', context)
+
+def device_alerts(request):
+    """View for displaying device alerts"""
+    context = {
+        'alerts': Alert.objects.all().order_by('-timestamp')[:100],  # Get the 100 most recent alerts
+        'unread_count': Alert.objects.filter(is_read=False).count()
+    }
+    return render(request, 'device_monitor/device_alerts.html', context)
 
 # API viewsets
 class DeviceViewSet(viewsets.ModelViewSet):
@@ -55,6 +68,25 @@ class DeviceViewSet(viewsets.ModelViewSet):
         try:
             discovered_devices = NetworkScanner.discover_devices(network_range)
             return Response({'success': True, 'devices': discovered_devices})
+        except Exception as e:
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'])
+    def monitor(self, request):
+        """Monitor network for new devices and create alerts"""
+        network_range = request.data.get('network_range', '192.168.1.0/24')
+        
+        try:
+            results = NetworkScanner.monitor_network(network_range)
+            return Response({
+                'success': True, 
+                'devices_found': results['total_devices'],
+                'new_devices': results['new_devices'],
+                'alerts_generated': results['alerts_generated']
+            })
         except Exception as e:
             return Response(
                 {'success': False, 'error': str(e)},
@@ -113,3 +145,42 @@ class ScanHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     """API endpoint for scan history"""
     queryset = ScanHistory.objects.all()
     serializer_class = ScanHistorySerializer
+
+class AlertViewSet(viewsets.ModelViewSet):
+    """API endpoint for alerts"""
+    queryset = Alert.objects.all().order_by('-timestamp')
+    
+    @action(detail=True, methods=['post'])
+    def mark_as_read(self, request, pk=None):
+        """Mark an alert as read"""
+        alert = self.get_object()
+        alert.is_read = True
+        alert.save()
+        return Response({'status': 'success'})
+    
+    @action(detail=False, methods=['post'])
+    def mark_all_as_read(self, request):
+        """Mark all alerts as read"""
+        Alert.objects.filter(is_read=False).update(is_read=True)
+        return Response({'status': 'success'})
+    
+    @action(detail=False, methods=['get'])
+    def unread(self, request):
+        """Get unread alerts"""
+        unread_alerts = Alert.objects.filter(is_read=False).order_by('-timestamp')
+        data = [
+            {
+                'id': alert.id,
+                'message': alert.message,
+                'alert_type': alert.alert_type,
+                'severity': alert.severity,
+                'timestamp': alert.timestamp,
+                'device': {
+                    'id': alert.device.id,
+                    'ip_address': alert.device.ip_address,
+                    'hostname': alert.device.hostname
+                } if alert.device else None
+            }
+            for alert in unread_alerts
+        ]
+        return Response(data)

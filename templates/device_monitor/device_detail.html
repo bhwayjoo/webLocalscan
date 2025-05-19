@@ -227,10 +227,10 @@
           data-bs-dismiss="modal"
           aria-label="Close"
         ></button>
-      </div>
-      <div class="modal-body">
+      </div>      <div class="modal-body">
         <p>This will scan for detailed service information on open ports.</p>
         <form id="detect-services-form">
+          {% csrf_token %}
           <input
             type="hidden"
             id="service-target-ip"
@@ -304,13 +304,14 @@
       // Show progress
       $("#scan-ports-form").addClass("d-none");
       $("#scan-progress").removeClass("d-none");
-      $("#start-port-scan-btn").prop("disabled", true);
-
-      // Make API call
+      $("#start-port-scan-btn").prop("disabled", true);      // Make API call
       $.ajax({
         url: "/api/ports/scan/",
         type: "POST",
         contentType: "application/json",
+        headers: {
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+        },
         data: JSON.stringify({
           target: target,
           port_range: portRange,
@@ -347,13 +348,14 @@
       // Show progress
       $("#detect-services-form").addClass("d-none");
       $("#services-scan-progress").removeClass("d-none");
-      $("#start-services-scan-btn").prop("disabled", true);
-
-      // Make API call
+      $("#start-services-scan-btn").prop("disabled", true);      // Make API call
       $.ajax({
         url: "/api/ports/detect_services/",
         type: "POST",
         contentType: "application/json",
+        headers: {
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+        },
         data: JSON.stringify({
           target: target,
           ports: ports,

@@ -58,16 +58,24 @@
     <div class="card">
       <div
         class="card-header d-flex justify-content-between align-items-center"
-      >
-        <h5 class="mb-0">Network Devices</h5>
-        <button
-          type="button"
-          class="btn btn-primary"
-          data-bs-toggle="modal"
-          data-bs-target="#scanModal"
-        >
-          <i class="fas fa-search me-1"></i> Scan Network
-        </button>
+      >        <h5 class="mb-0">Network Devices</h5>
+        <div>
+          <button
+            type="button"
+            class="btn btn-primary me-2"
+            data-bs-toggle="modal"
+            data-bs-target="#scanModal"
+          >
+            <i class="fas fa-search me-1"></i> Scan Network
+          </button>
+          <button
+            type="button"
+            class="btn btn-success"
+            id="start-monitoring-btn"
+          >
+            <i class="fas fa-radar me-1"></i> Auto Monitor
+          </button>
+        </div>
       </div>
       <div class="card-body">
         <div class="table-responsive">
@@ -120,6 +128,41 @@
           <li class="list-group-item text-center">No recent scans</li>
           {% endfor %}
         </ul>
+      </div>
+    </div>
+    
+    <!-- Recent Alerts Card -->
+    <div class="card mt-4">
+      <div class="card-header">
+        <h5 class="mb-0">Recent Alerts</h5>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush" id="alerts-list">
+          {% for alert in recent_alerts %}
+          <li class="list-group-item {% if not alert.is_read %}list-group-item-warning{% endif %}">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="mb-1">{{ alert.get_alert_type_display }}</h6>
+                <small>{{ alert.message }}</small>
+              </div>
+              <span class="badge 
+                {% if alert.severity == 'critical' %}bg-danger
+                {% elif alert.severity == 'warning' %}bg-warning
+                {% else %}bg-info{% endif %}">
+                {{ alert.get_severity_display }}
+              </span>
+            </div>
+            <small class="text-muted">{{ alert.timestamp|date:"M d, Y H:i" }}</small>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-center">No recent alerts</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="card-footer text-center">
+        <a href="{% url 'device_alerts' %}" class="btn btn-sm btn-outline-primary">
+          View All Alerts
+        </a>
       </div>
     </div>
   </div>
@@ -180,6 +223,80 @@
         </button>
         <button type="button" class="btn btn-primary" id="start-scan-btn">
           Start Scan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Network Monitoring Modal -->
+<div
+  class="modal fade"
+  id="monitoringModal"
+  tabindex="-1"
+  aria-labelledby="monitoringModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="monitoringModalLabel">Automatic Network Monitoring</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="monitoring-form">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="monitor-network-range" class="form-label">Network Range</label>
+            <input
+              type="text"
+              class="form-control"
+              id="monitor-network-range"
+              placeholder="192.168.1.0/24"
+              value="192.168.1.0/24"
+            />
+            <div class="form-text">Enter network range in CIDR notation</div>
+          </div>
+          <div class="mb-3">
+            <label for="monitor-interval" class="form-label">Scan Interval (seconds)</label>
+            <input
+              type="number"
+              class="form-control"
+              id="monitor-interval"
+              min="30"
+              value="60"
+            />
+            <div class="form-text">Minimum 30 seconds recommended</div>
+          </div>
+        </form>
+        <div id="monitoring-status" class="d-none">
+          <div class="alert alert-info">
+            <div class="d-flex align-items-center">
+              <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Monitoring...</span>
+              </div>
+              <div>
+                <strong>Monitoring active</strong>
+                <p class="mb-0" id="monitoring-info">Scanning for new devices...</p>
+                <p class="mb-0 mt-2">
+                  <span id="new-devices-count">0</span> new devices detected
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="stop-monitoring-btn" disabled>
+          Stop Monitoring
+        </button>
+        <button type="button" class="btn btn-primary" id="start-monitoring-modal-btn">
+          Start Monitoring
         </button>
       </div>
     </div>
@@ -322,6 +439,159 @@
         error: function () {
           alert("Port scan failed. Please try again.");
         },
+      });
+    }
+
+    // Network monitoring functionality
+    let monitoringInterval;
+    let newDevicesDetected = 0;
+    
+    // Show monitoring modal when button is clicked
+    $("#start-monitoring-btn").click(function() {
+      $("#monitoringModal").modal("show");
+    });
+    
+    // Start monitoring when confirmed in modal
+    $("#start-monitoring-modal-btn").click(function() {
+      const networkRange = $("#monitor-network-range").val();
+      const interval = parseInt($("#monitor-interval").val());
+      
+      if (interval < 30) {
+        alert("Please set an interval of at least 30 seconds.");
+        return;
+      }
+      
+      // Show monitoring status
+      $("#monitoring-form").addClass("d-none");
+      $("#monitoring-status").removeClass("d-none");
+      $("#start-monitoring-modal-btn").prop("disabled", true);
+      $("#stop-monitoring-btn").prop("disabled", false);
+      
+      // Start monitoring at specified interval
+      runNetworkMonitoring(networkRange);
+      monitoringInterval = setInterval(function() {
+        runNetworkMonitoring(networkRange);
+      }, interval * 1000);
+    });
+    
+    // Stop monitoring
+    $("#stop-monitoring-btn").click(function() {
+      clearInterval(monitoringInterval);
+      
+      $("#monitoring-form").removeClass("d-none");
+      $("#monitoring-status").addClass("d-none");
+      $("#start-monitoring-modal-btn").prop("disabled", false);
+      $("#stop-monitoring-btn").prop("disabled", true);
+      
+      $("#monitoring-info").text("Scanning for new devices...");
+      newDevicesDetected = 0;
+      $("#new-devices-count").text("0");
+    });
+    
+    // Function to perform network monitoring scan
+    function runNetworkMonitoring(networkRange) {
+      $("#monitoring-info").text("Scanning network " + networkRange + "...");
+      
+      $.ajax({
+        url: "/api/devices/monitor/",
+        type: "POST",
+        contentType: "application/json",
+        headers: {
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+        },
+        data: JSON.stringify({ network_range: networkRange }),
+        success: function(data) {
+          const timestamp = new Date().toLocaleTimeString();
+          $("#monitoring-info").text("Last scan: " + timestamp);
+          
+          if (data.new_devices && data.new_devices.length > 0) {
+            newDevicesDetected += data.new_devices.length;
+            $("#new-devices-count").text(newDevicesDetected);
+            
+            // Update the alerts list if there are new alerts
+            refreshAlerts();
+            
+            // Update devices table
+            loadDevices();
+          }
+        },
+        error: function() {
+          $("#monitoring-info").text("Error during network scan");
+        }
+      });
+    }
+    
+    // Function to refresh alerts
+    function refreshAlerts() {
+      $.ajax({
+        url: "/api/alerts/unread/",
+        type: "GET",
+        success: function(data) {
+          // Update unread counter in the navbar
+          const unreadCount = data.length;
+          $("#alert-count").text(unreadCount);
+          
+          if (unreadCount > 0) {
+            $("#alert-count").show();
+          } else {
+            $("#alert-count").hide();
+          }
+          
+          // Refresh alerts list on dashboard
+          const alertsList = $("#alerts-list");
+          if (alertsList.length > 0) {
+            let alertsHtml = '';
+            
+            if (data.length === 0) {
+              alertsHtml = '<li class="list-group-item text-center">No recent alerts</li>';
+            } else {
+              // Only show the 5 most recent alerts
+              const recentAlerts = data.slice(0, 5);
+              
+              recentAlerts.forEach(function(alert) {
+                let severityClass = '';
+                if (alert.severity === 'critical') {
+                  severityClass = 'bg-danger';
+                } else if (alert.severity === 'warning') {
+                  severityClass = 'bg-warning';
+                } else {
+                  severityClass = 'bg-info';
+                }
+                
+                let alertTypeDisplay = '';
+                if (alert.alert_type === 'new_device') {
+                  alertTypeDisplay = 'New Device Detected';
+                } else if (alert.alert_type === 'status_change') {
+                  alertTypeDisplay = 'Device Status Change';
+                } else if (alert.alert_type === 'port_change') {
+                  alertTypeDisplay = 'Open Port Change';
+                } else {
+                  alertTypeDisplay = 'Security Alert';
+                }
+                
+                const timestamp = new Date(alert.timestamp).toLocaleString();
+                
+                alertsHtml += `
+                  <li class="list-group-item list-group-item-warning">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div>
+                        <h6 class="mb-1">${alertTypeDisplay}</h6>
+                        <small>${alert.message}</small>
+                      </div>
+                      <span class="badge ${severityClass}">
+                        ${alert.severity === 'critical' ? 'Critical' : 
+                          alert.severity === 'warning' ? 'Warning' : 'Info'}
+                      </span>
+                    </div>
+                    <small class="text-muted">${timestamp}</small>
+                  </li>
+                `;
+              });
+            }
+            
+            alertsList.html(alertsHtml);
+          }
+        }
       });
     }
 

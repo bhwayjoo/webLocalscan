@@ -7,6 +7,7 @@ router = DefaultRouter()
 router.register(r'devices', views.DeviceViewSet)
 router.register(r'ports', views.PortViewSet)
 router.register(r'scan-history', views.ScanHistoryViewSet)
+router.register(r'alerts', views.AlertViewSet, basename='alert')
 
 # URL patterns for both web and API views
 urlpatterns = [
@@ -15,6 +16,7 @@ urlpatterns = [
     path('devices/', views.device_list, name='device_list'),
     path('devices/<int:device_id>/', views.device_detail, name='device_detail'),
     path('scan-history/', views.scan_history, name='scan_history'),
+    path('alerts/', views.device_alerts, name='device_alerts'),
     
     # API endpoints
     path('api/', include(router.urls)),

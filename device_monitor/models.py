@@ -53,3 +53,34 @@ class ScanHistory(models.Model):
     
     class Meta:
         ordering = ['-start_time']
+        verbose_name_plural = 'Scan Histories'
+
+
+class Alert(models.Model):
+    """Model for storing network alerts."""
+    ALERT_TYPES = [
+        ('new_device', 'New Device Detected'),
+        ('status_change', 'Device Status Change'),
+        ('port_change', 'Open Port Change'),
+        ('security', 'Security Alert')
+    ]
+    
+    SEVERITY_LEVELS = [
+        ('info', 'Information'),
+        ('warning', 'Warning'),
+        ('critical', 'Critical')
+    ]
+    
+    device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name='alerts', null=True, blank=True)
+    alert_type = models.CharField(max_length=50, choices=ALERT_TYPES)
+    severity = models.CharField(max_length=20, choices=SEVERITY_LEVELS, default='info')
+    message = models.TextField()
+    details = models.JSONField(null=True, blank=True)
+    timestamp = models.DateTimeField(default=timezone.now)
+    is_read = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"{self.get_alert_type_display()} - {self.timestamp}"
+    
+    class Meta:
+        ordering = ['-timestamp']

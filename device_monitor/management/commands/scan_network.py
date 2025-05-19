@@ -1,8 +1,10 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from device_monitor.utils import NetworkScanner
+from device_monitor.models import Alert
 import argparse
 import ipaddress
+import time
 
 
 class Command(BaseCommand):
@@ -38,6 +40,22 @@ class Command(BaseCommand):
             type=str,
             help='Specific IP address to scan'
         )
+        parser.add_argument(
+            '--monitor',
+            action='store_true',
+            help='Monitor for new devices and generate alerts'
+        )
+        parser.add_argument(
+            '--interval',
+            type=int,
+            default=300,  # 5 minutes
+            help='Interval between scans when monitoring (in seconds)'
+        )
+        parser.add_argument(
+            '--continuous',
+            action='store_true',
+            help='Run scan or monitoring continuously'
+        )
 
     def handle(self, *args, **options):
         network_range = options['network']
@@ -45,12 +63,20 @@ class Command(BaseCommand):
         protocol = options['protocol']
         discovery_only = options['discovery_only']
         target = options['target']
+        monitor = options['monitor']
+        interval = options['interval']
+        continuous = options['continuous']
 
         # Validate network range
         try:
             ipaddress.ip_network(network_range)
         except ValueError:
             self.stderr.write(self.style.ERROR(f'Invalid network range: {network_range}'))
+            return
+            
+        # Handle monitoring mode
+        if monitor:
+            self._run_monitoring(network_range, interval, continuous)
             return
 
         # Run network discovery
@@ -102,3 +128,49 @@ class Command(BaseCommand):
         
         except Exception as e:
             self.stderr.write(self.style.ERROR(f'Error during port scanning: {str(e)}'))
+    
+    def _run_monitoring(self, network_range, interval, continuous):
+        """Run network monitoring to detect new devices"""
+        import time
+        
+        self.stdout.write(self.style.SUCCESS(f'Starting network monitoring for {network_range}'))
+        
+        try:
+            # Run once or continuously based on the flag
+            if continuous:
+                self.stdout.write(f'Running continuously with interval of {interval} seconds')
+                while True:
+                    self._do_monitor_scan(network_range)
+                    time.sleep(interval)
+            else:
+                self._do_monitor_scan(network_range)
+                
+        except KeyboardInterrupt:
+            self.stdout.write(self.style.WARNING('Network monitoring stopped by user'))
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'Error: {str(e)}'))
+    
+    def _do_monitor_scan(self, network_range):
+        """Perform a single monitoring scan"""
+        self.stdout.write(f'Scanning network {network_range} for new devices...')
+        results = NetworkScanner.monitor_network(network_range)
+        
+        if results['alerts_generated'] > 0:
+            self.stdout.write(
+                self.style.WARNING(
+                    f'Found {results["alerts_generated"]} new devices on the network!'
+                )
+            )
+            
+            for device in results['new_devices']:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f'New device: {device["hostname"] or "Unknown"} ({device["ip_address"]})'
+                    )
+                )
+        else:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f'Scan complete. Found {results["total_devices"]} devices. No new devices detected.'
+                )
+            )
