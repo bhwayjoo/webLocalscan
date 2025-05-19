@@ -237,8 +237,7 @@ class NetworkScanner:
             return services
             
         except Exception as e:
-            # Update scan history with error
-            scan.status = 'failed'
+            # Update scan history with error            scan.status = 'failed'
             scan.end_time = timezone.now()
             scan.save()
             raise e
@@ -254,10 +253,13 @@ class NetworkScanner:
         Returns:
             dict: Dictionary containing monitoring results
         """
-        from .models import Alert
+        from .models import Alert, IPWhitelist
         
         # Get currently known devices
         known_devices = {device.ip_address: device for device in Device.objects.all()}
+        
+        # Get whitelisted IP addresses
+        whitelisted_ips = set(ip.ip_address for ip in IPWhitelist.objects.filter(is_active=True))
         
         # Discover current devices on the network
         discovered_devices = NetworkScanner.discover_devices(network_range)
@@ -266,6 +268,7 @@ class NetworkScanner:
         results = {
             'total_devices': len(discovered_devices),
             'new_devices': [],
+            'unauthorized_devices': [],
             'alerts_generated': 0
         }
         
@@ -304,6 +307,37 @@ class NetworkScanner:
                 except Device.DoesNotExist:
                     # This shouldn't happen if discover_devices is working correctly
                     pass
+                except Exception as e:
+                    # Log the error but continue
+                    pass
+                
+            # Check if the device is not in the whitelist
+            if ip_address not in whitelisted_ips:
+                try:
+                    device = Device.objects.get(ip_address=ip_address)
+                    
+                    # Create an alert for unauthorized device
+                    alert = Alert.objects.create(
+                        device=device,
+                        alert_type='security',
+                        severity='critical',
+                        message=f"Unauthorized device detected: {device.hostname or 'Unknown'} ({device.ip_address})",
+                        details={
+                            'ip_address': device.ip_address,
+                            'mac_address': device.mac_address,
+                            'hostname': device.hostname,
+                            'whitelisted': False
+                        }
+                    )
+                    
+                    results['unauthorized_devices'].append({
+                        'ip_address': device.ip_address,
+                        'hostname': device.hostname,
+                        'mac_address': device.mac_address,
+                        'alert_id': alert.id
+                    })
+                    
+                    results['alerts_generated'] += 1
                 except Exception as e:
                     # Log the error but continue
                     pass

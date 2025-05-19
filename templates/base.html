@@ -148,6 +148,14 @@
               </a>
             </li>
             <li class="nav-item">
+              <a
+                class="nav-link {% if '/ip-whitelist/' in request.path %}active{% endif %}"
+                href="{% url 'ip_whitelist' %}"
+              >
+                <i class="fas fa-list me-2"></i> IP Whitelist
+              </a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link" href="/admin/" target="_blank">
                 <i class="fas fa-cog me-2"></i> Admin
               </a>

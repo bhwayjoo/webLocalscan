@@ -84,3 +84,18 @@ class Alert(models.Model):
     
     class Meta:
         ordering = ['-timestamp']
+
+class IPWhitelist(models.Model):
+    """Model for storing whitelisted IP addresses that are approved to be on the network."""
+    ip_address = models.GenericIPAddressField(unique=True)
+    description = models.CharField(max_length=255, blank=True, null=True)
+    added_date = models.DateTimeField(default=timezone.now)
+    is_active = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return f"{self.ip_address} - {self.description or 'No description'}"
+    
+    class Meta:
+        verbose_name = "IP Whitelist Entry"
+        verbose_name_plural = "IP Whitelist Entries"
+        ordering = ['ip_address']

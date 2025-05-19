@@ -4,18 +4,28 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
 
-from .models import Device, Port, ScanHistory, Alert
-from .serializers import DeviceSerializer, PortSerializer, ScanHistorySerializer
+from .models import Device, Port, ScanHistory, Alert, IPWhitelist
+from .serializers import DeviceSerializer, PortSerializer, ScanHistorySerializer, IPWhitelistSerializer
 from .utils import NetworkScanner
 
 # Web views
 def dashboard(request):
     """Main dashboard view"""
+    # Get whitelisted IPs
+    whitelisted_ips = set(ip.ip_address for ip in IPWhitelist.objects.filter(is_active=True))
+    
+    # Get devices not in whitelist
+    all_devices = Device.objects.all()
+    unauthorized_devices = [device for device in all_devices if device.ip_address not in whitelisted_ips]
+    
     context = {
-        'devices_count': Device.objects.count(),
+        'devices_count': all_devices.count(),
         'active_devices': Device.objects.filter(status='active').count(),
         'recent_scans': ScanHistory.objects.all()[:5],
         'recent_alerts': Alert.objects.all().order_by('-timestamp')[:5],
+        'unauthorized_count': len(unauthorized_devices),
+        'recent_unauthorized': unauthorized_devices[:5],
+        'whitelisted_count': IPWhitelist.objects.filter(is_active=True).count(),
         'unread_count': Alert.objects.filter(is_read=False).count()
     }
     return render(request, 'device_monitor/dashboard.html', context)
@@ -53,6 +63,14 @@ def device_alerts(request):
         'unread_count': Alert.objects.filter(is_read=False).count()
     }
     return render(request, 'device_monitor/device_alerts.html', context)
+
+def ip_whitelist(request):
+    """View for managing IP whitelist"""
+    context = {
+        'whitelist': IPWhitelist.objects.all().order_by('ip_address'),
+        'unread_count': Alert.objects.filter(is_read=False).count()
+    }
+    return render(request, 'device_monitor/ip_whitelist.html', context)
 
 # API viewsets
 class DeviceViewSet(viewsets.ModelViewSet):
@@ -184,3 +202,32 @@ class AlertViewSet(viewsets.ModelViewSet):
             for alert in unread_alerts
         ]
         return Response(data)
+        
+class IPWhitelistViewSet(viewsets.ModelViewSet):
+    """API endpoint for IP whitelist management"""
+    queryset = IPWhitelist.objects.all()
+    serializer_class = IPWhitelistSerializer
+    
+    def create(self, request):
+        """Create a new IP whitelist entry"""
+        try:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    def update(self, request, *args, **kwargs):
+        """Update an IP whitelist entry"""
+        try:
+            return super().update(request, *args, **kwargs)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    def partial_update(self, request, *args, **kwargs):
+        """Partially update an IP whitelist entry"""
+        try:
+            return super().partial_update(request, *args, **kwargs)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
