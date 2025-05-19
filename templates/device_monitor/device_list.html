@@ -96,9 +96,9 @@
           data-bs-dismiss="modal"
           aria-label="Close"
         ></button>
-      </div>
-      <div class="modal-body">
+      </div>      <div class="modal-body">
         <form id="network-scan-form">
+          {% csrf_token %}
           <div class="mb-3">
             <label for="network-range" class="form-label">Network Range</label>
             <input
@@ -157,9 +157,9 @@
           data-bs-dismiss="modal"
           aria-label="Close"
         ></button>
-      </div>
-      <div class="modal-body">
+      </div>      <div class="modal-body">
         <form id="device-scan-form">
+          {% csrf_token %}
           <input type="hidden" id="device-ip" name="target" />
           <div class="mb-3">
             <label for="port-range" class="form-label">Port Range</label>
@@ -224,13 +224,14 @@
       // Show progress
       $("#network-scan-form").addClass("d-none");
       $("#scan-progress").removeClass("d-none");
-      $("#start-network-scan-btn").prop("disabled", true);
-
-      // Make API call
+      $("#start-network-scan-btn").prop("disabled", true);      // Make API call
       $.ajax({
         url: "/api/devices/discover/",
         type: "POST",
         contentType: "application/json",
+        headers: {
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+        },
         data: JSON.stringify({ network_range: networkRange }),
         success: function (data) {
           $("#scan-status-text").text(
@@ -272,13 +273,14 @@
       // Show progress
       $("#device-scan-form").addClass("d-none");
       $("#device-scan-progress").removeClass("d-none");
-      $("#start-device-scan-btn").prop("disabled", true);
-
-      // Make API call
+      $("#start-device-scan-btn").prop("disabled", true);      // Make API call
       $.ajax({
         url: "/api/ports/scan/",
         type: "POST",
         contentType: "application/json",
+        headers: {
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+        },
         data: JSON.stringify({
           target: ip,
           port_range: portRange,

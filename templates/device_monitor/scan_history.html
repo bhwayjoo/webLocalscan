@@ -27,15 +27,20 @@
           {% for scan in scans %}
           <tr>
             <td>{{ scan.scan_type|title }}</td>
-            <td>{{ scan.target_range }}</td>
-            <td>{{ scan.start_time|date:"M d, Y H:i:s" }}</td>
+            <td>{{ scan.target_range }}</td>            <td>{{ scan.start_time|date:"M d, Y H:i:s" }}</td>
             <td>
-              {% if scan.end_time %} {{ scan.end_time|date:"M d, Y H:i:s" }} {%
-              else %} N/A {% endif %}
+              {% if scan.end_time %}
+                {{ scan.end_time|date:"M d, Y H:i:s" }}
+              {% else %}
+                N/A
+              {% endif %}
             </td>
             <td>
-              {% if scan.end_time %} {{ scan.end_time|timeuntil:scan.start_time
-              }} {% else %} In progress {% endif %}
+              {% if scan.end_time %}
+                {{ scan.end_time|timeuntil:scan.start_time }}
+              {% else %}
+                In progress
+              {% endif %}
             </td>
             <td>{{ scan.devices_found }}</td>
             <td>

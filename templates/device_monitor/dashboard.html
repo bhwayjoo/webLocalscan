@@ -143,9 +143,9 @@
           data-bs-dismiss="modal"
           aria-label="Close"
         ></button>
-      </div>
-      <div class="modal-body">
+      </div>      <div class="modal-body">
         <form id="scan-form">
+          {% csrf_token %}
           <div class="mb-3">
             <label for="network-range" class="form-label">Network Range</label>
             <input
@@ -261,13 +261,14 @@
       $("#scan-form").addClass("d-none");
       $("#scan-progress").removeClass("d-none");
       $("#scan-results").addClass("d-none");
-      $("#start-scan-btn").prop("disabled", true);
-
-      // Make API call
+      $("#start-scan-btn").prop("disabled", true);      // Make API call
       $.ajax({
         url: "/api/devices/discover/",
         type: "POST",
         contentType: "application/json",
+        headers: {
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+        },
         data: JSON.stringify({ network_range: networkRange }),
         success: function (data) {
           // Show results
@@ -306,12 +307,13 @@
     function scanPorts(ip) {
       if (!confirm(`Scan ports on ${ip}?`)) {
         return;
-      }
-
-      $.ajax({
+      }      $.ajax({
         url: "/api/ports/scan/",
         type: "POST",
         contentType: "application/json",
+        headers: {
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+        },
         data: JSON.stringify({ target: ip }),
         success: function (data) {
           alert(`Scan completed. Found ${data.ports.length} open ports.`);
