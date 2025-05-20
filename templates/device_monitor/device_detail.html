@@ -1,9 +1,6 @@
-{% extends 'base.html' %}
-
+{% extends 'base.html' %} 
 {% block title %}Device Details - Network Monitor{% endblock %}
-
 {% block page_title %}Device Details{% endblock %}
-
 {% block content %}
 <div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
@@ -17,6 +14,7 @@
         class="btn btn-primary"
         id="scan-ports-btn"
         data-ip="{{ device.ip_address }}"
+
       >
         <i class="fas fa-search me-1"></i> Scan Ports
       </button>
@@ -25,6 +23,7 @@
         class="btn btn-info"
         id="scan-services-btn"
         data-ip="{{ device.ip_address }}"
+
       >
         <i class="fas fa-cogs me-1"></i> Detect Services
       </button>
@@ -152,7 +151,8 @@
           data-bs-dismiss="modal"
           aria-label="Close"
         ></button>
-      </div>      <div class="modal-body">
+      </div>
+      <div class="modal-body">
         <form id="scan-ports-form">
           {% csrf_token %}
           <input
@@ -160,6 +160,7 @@
             id="target-ip"
             name="target"
             value="{{ device.ip_address }}"
+
           />
           <div class="mb-3">
             <label for="port-range" class="form-label">Port Range</label>
@@ -227,7 +228,8 @@
           data-bs-dismiss="modal"
           aria-label="Close"
         ></button>
-      </div>      <div class="modal-body">
+      </div>
+      <div class="modal-body">
         <p>This will scan for detailed service information on open ports.</p>
         <form id="detect-services-form">
           {% csrf_token %}
@@ -236,6 +238,7 @@
             id="service-target-ip"
             name="target"
             value="{{ device.ip_address }}"
+
           />
           <div class="mb-3">
             <label for="service-ports" class="form-label">Ports</label>
@@ -295,91 +298,112 @@
       $("#detectServicesModal").modal("show");
     });
 
-    // Handle port scan
+    // Start port scan
     $("#start-port-scan-btn").click(function () {
-      const target = $("#target-ip").val();
+      const targetIp = "{{ device.ip_address }}";
       const portRange = $("#port-range").val();
       const protocol = $("#protocol").val();
 
       // Show progress
-      $("#scan-ports-form").addClass("d-none");
-      $("#scan-progress").removeClass("d-none");
-      $("#start-port-scan-btn").prop("disabled", true);      // Make API call
+      $("#port-scan-form").addClass("d-none");
+      $("#port-scan-progress").removeClass("d-none");
+      $("#port-scan-results").addClass("d-none");
+      $("#start-port-scan-btn").prop("disabled", true);
+
       $.ajax({
         url: "/api/ports/scan/",
         type: "POST",
         contentType: "application/json",
         headers: {
-          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val(),
         },
         data: JSON.stringify({
-          target: target,
+          target: targetIp,
           port_range: portRange,
           protocol: protocol,
         }),
         success: function (data) {
-          $("#scan-status-text").text(
-            `Scan completed! Found ${data.ports.length} open ports.`
-          );
-
-          // Reload page after a delay
-          setTimeout(function () {
-            location.reload();
-          }, 2000);
-        },
-        error: function () {
-          $("#scan-status-text").text("Scan failed. Please try again.");
+          // Show results
+          $("#port-scan-progress").addClass("d-none");
+          $("#port-scan-results").removeClass("d-none");
+          $("#ports-found").text(data.ports.length);
 
           // Re-enable form
           setTimeout(function () {
-            $("#scan-ports-form").removeClass("d-none");
-            $("#scan-progress").addClass("d-none");
+            $("#port-scan-form").removeClass("d-none");
+            $("#start-port-scan-btn").prop("disabled", false);
+          }, 2000);
+
+          // Reload page to show new ports
+          location.reload();
+        },
+        error: function () {
+          // Show error
+          $("#port-scan-progress").addClass("d-none");
+          $("#port-scan-results")
+            .removeClass("d-none")
+            .html(
+              '<div class="alert alert-danger">Port scan failed. Please try again.</div>'
+            );
+
+          // Re-enable form
+          setTimeout(function () {
+            $("#port-scan-form").removeClass("d-none");
             $("#start-port-scan-btn").prop("disabled", false);
           }, 2000);
         },
       });
     });
 
-    // Handle service detection
+    // Start service detection
     $("#start-services-scan-btn").click(function () {
-      const target = $("#service-target-ip").val();
-      const ports = $("#service-ports").val();
+      const targetIp = "{{ device.ip_address }}";
+      const portsToScan = $("#ports-to-scan").val();
 
       // Show progress
-      $("#detect-services-form").addClass("d-none");
+      $("#services-scan-form").addClass("d-none");
       $("#services-scan-progress").removeClass("d-none");
-      $("#start-services-scan-btn").prop("disabled", true);      // Make API call
+      $("#services-scan-results").addClass("d-none");
+      $("#start-services-scan-btn").prop("disabled", true);
+
       $.ajax({
         url: "/api/ports/detect_services/",
         type: "POST",
         contentType: "application/json",
         headers: {
-          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val(),
         },
         data: JSON.stringify({
-          target: target,
-          ports: ports,
+          target: targetIp,
+          ports: portsToScan,
         }),
         success: function (data) {
-          const servicesCount = Object.keys(data.services).length;
-          $("#services-scan-status-text").text(
-            `Scan completed! Detected services on ${servicesCount} ports.`
-          );
-
-          // Reload page after a delay
-          setTimeout(function () {
-            location.reload();
-          }, 2000);
-        },
-        error: function () {
-          $("#services-scan-status-text").text(
-            "Service detection failed. Please try again."
-          );
+          // Show results
+          $("#services-scan-progress").addClass("d-none");
+          $("#services-scan-results").removeClass("d-none");
+          $("#services-found").text(Object.keys(data.services).length);
 
           // Re-enable form
           setTimeout(function () {
-            $("#detect-services-form").removeClass("d-none");
-            $("#services-scan-progress").addClass("d-none");
+            $("#services-scan-form").removeClass("d-none");
+            $("#start-services-scan-btn").prop("disabled", false);
+          }, 2000);
+
+          // Reload page to show new service info
+          location.reload();
+        },
+        error: function () {
+          // Show error
+          $("#services-scan-progress").addClass("d-none");
+          $("#services-scan-results")
+            .removeClass("d-none")
+            .html(
+              '<div class="alert alert-danger">Service detection failed. Please try again.</div>'
+            );
+
+          // Re-enable form
+          setTimeout(function () {
+            $("#services-scan-form").removeClass("d-none");
             $("#start-services-scan-btn").prop("disabled", false);
           }, 2000);
         },
@@ -387,5 +411,4 @@
     });
   });
 </script>
-
 {% endblock %}

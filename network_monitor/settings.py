@@ -130,19 +130,16 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
-
-# Media files
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Login/Logout URLs
+LOGIN_URL = 'login'  # The name of the URL pattern for the login page
+LOGIN_REDIRECT_URL = 'dashboard'  # The URL to redirect to after successful login
+LOGOUT_REDIRECT_URL = 'login'  # The URL to redirect to after logout
 
 # REST Framework settings
 REST_FRAMEWORK = {

@@ -1,9 +1,6 @@
 {% extends 'base.html' %}
-
 {% block title %}Devices - Network Monitor{% endblock %}
-
 {% block page_title %}Network Devices{% endblock %}
-
 {% block content %}
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
@@ -96,7 +93,8 @@
           data-bs-dismiss="modal"
           aria-label="Close"
         ></button>
-      </div>      <div class="modal-body">
+      </div>
+      <div class="modal-body">
         <form id="network-scan-form">
           {% csrf_token %}
           <div class="mb-3">
@@ -157,7 +155,8 @@
           data-bs-dismiss="modal"
           aria-label="Close"
         ></button>
-      </div>      <div class="modal-body">
+      </div>
+      <div class="modal-body">
         <form id="device-scan-form">
           {% csrf_token %}
           <input type="hidden" id="device-ip" name="target" />
@@ -212,9 +211,7 @@
     </div>
   </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
+{% endblock %} {% block extra_js %}
 <script>
   $(document).ready(function () {
     // Handle network scan
@@ -224,13 +221,13 @@
       // Show progress
       $("#network-scan-form").addClass("d-none");
       $("#scan-progress").removeClass("d-none");
-      $("#start-network-scan-btn").prop("disabled", true);      // Make API call
+      $("#start-network-scan-btn").prop("disabled", true); // Make API call
       $.ajax({
         url: "/api/devices/discover/",
         type: "POST",
         contentType: "application/json",
         headers: {
-          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val(),
         },
         data: JSON.stringify({ network_range: networkRange }),
         success: function (data) {
@@ -273,13 +270,13 @@
       // Show progress
       $("#device-scan-form").addClass("d-none");
       $("#device-scan-progress").removeClass("d-none");
-      $("#start-device-scan-btn").prop("disabled", true);      // Make API call
+      $("#start-device-scan-btn").prop("disabled", true); // Make API call
       $.ajax({
         url: "/api/ports/scan/",
         type: "POST",
         contentType: "application/json",
         headers: {
-          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val(),
         },
         data: JSON.stringify({
           target: ip,

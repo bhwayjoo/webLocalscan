@@ -1,12 +1,9 @@
 {% extends 'base.html' %}
-
 {% block title %}Dashboard - Network Monitor{% endblock %}
-
 {% block page_title %}Dashboard{% endblock %}
-
 {% block content %}
 <div class="row mb-4">
-  <div class="col-md-3">
+  <div class="col-md-4">
     <div class="card">
       <div class="card-body">
         <div class="d-flex align-items-center">
@@ -21,7 +18,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-md-4">
     <div class="card">
       <div class="card-body">
         <div class="d-flex align-items-center">
@@ -35,8 +32,7 @@
         </div>
       </div>
     </div>
-  </div>
-  <div class="col-md-3">
+  </div>  <div class="col-md-4">
     <div class="card">
       <div class="card-body">
         <div class="d-flex align-items-center">
@@ -45,22 +41,7 @@
           </div>
           <div>
             <h6 class="card-subtitle mb-1 text-muted">Open Ports</h6>
-            <h2 class="card-title mb-0" id="open-ports-count">Loading...</h2>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="device-icon {% if unauthorized_count > 0 %}text-danger{% else %}text-success{% endif %}">
-            <i class="fas fa-check-circle"></i>
-          </div>
-          <div>
-            <h6 class="card-subtitle mb-1 text-muted">Unauthorized Devices</h6>
-            <h2 class="card-title mb-0">{{ unauthorized_count }}</h2>
+            <h2 class="card-title mb-0" id="open-ports-count">0</h2>
           </div>
         </div>
       </div>
@@ -73,7 +54,8 @@
     <div class="card">
       <div
         class="card-header d-flex justify-content-between align-items-center"
-      >        <h5 class="mb-0">Network Devices</h5>
+      >
+        <h5 class="mb-0">Network Devices</h5>
         <div>
           <button
             type="button"
@@ -114,8 +96,26 @@
       </div>
     </div>
   </div>
-
   <div class="col-md-4">
+    <!-- Unauthorized Devices Card -->
+    <div class="card mb-4">
+      <div class="card-header bg-danger text-white">
+        <h5 class="mb-0">
+          <i class="fas fa-exclamation-triangle me-2"></i>Unauthorized Devices
+        </h5>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush" id="unauthorized-devices-list">
+          <li class="list-group-item text-center">Loading unauthorized devices...</li>
+        </ul>
+      </div>
+      <div class="card-footer text-center">
+        <a href="{% url 'ip_whitelist' %}" class="btn btn-sm btn-outline-danger">
+          Manage Whitelist
+        </a>
+      </div>
+    </div>
+    
     <div class="card">
       <div class="card-header">
         <h5 class="mb-0">Recent Scans</h5>
@@ -145,7 +145,7 @@
         </ul>
       </div>
     </div>
-    
+
     <!-- Recent Alerts Card -->
     <div class="card mt-4">
       <div class="card-header">
@@ -154,20 +154,23 @@
       <div class="card-body p-0">
         <ul class="list-group list-group-flush" id="alerts-list">
           {% for alert in recent_alerts %}
-          <li class="list-group-item {% if not alert.is_read %}list-group-item-warning{% endif %}">
+          <li
+            class="list-group-item {% if not alert.is_read %}list-group-item-warning{% endif %}"
+          >
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h6 class="mb-1">{{ alert.get_alert_type_display }}</h6>
                 <small>{{ alert.message }}</small>
               </div>
-              <span class="badge 
-                {% if alert.severity == 'critical' %}bg-danger
-                {% elif alert.severity == 'warning' %}bg-warning
-                {% else %}bg-info{% endif %}">
+              <span
+                class="badge {% if alert.severity == 'critical' %}bg-danger {% elif alert.severity == 'warning' %}bg-warning {% else %}bg-info{% endif %}"
+              >
                 {{ alert.get_severity_display }}
               </span>
             </div>
-            <small class="text-muted">{{ alert.timestamp|date:"M d, Y H:i" }}</small>
+            <small class="text-muted"
+              >{{ alert.timestamp|date:"M d, Y H:i" }}</small
+            >
           </li>
           {% empty %}
           <li class="list-group-item text-center">No recent alerts</li>
@@ -175,7 +178,10 @@
         </ul>
       </div>
       <div class="card-footer text-center">
-        <a href="{% url 'device_alerts' %}" class="btn btn-sm btn-outline-primary">
+        <a
+          href="{% url 'device_alerts' %}"
+          class="btn btn-sm btn-outline-primary"
+        >
           View All Alerts
         </a>
       </div>
@@ -201,7 +207,8 @@
           data-bs-dismiss="modal"
           aria-label="Close"
         ></button>
-      </div>      <div class="modal-body">
+      </div>
+      <div class="modal-body">
         <form id="scan-form">
           {% csrf_token %}
           <div class="mb-3">
@@ -255,7 +262,9 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="monitoringModalLabel">Automatic Network Monitoring</h5>
+        <h5 class="modal-title" id="monitoringModalLabel">
+          Automatic Network Monitoring
+        </h5>
         <button
           type="button"
           class="btn-close"
@@ -267,7 +276,9 @@
         <form id="monitoring-form">
           {% csrf_token %}
           <div class="mb-3">
-            <label for="monitor-network-range" class="form-label">Network Range</label>
+            <label for="monitor-network-range" class="form-label"
+              >Network Range</label
+            >
             <input
               type="text"
               class="form-control"
@@ -278,7 +289,9 @@
             <div class="form-text">Enter network range in CIDR notation</div>
           </div>
           <div class="mb-3">
-            <label for="monitor-interval" class="form-label">Scan Interval (seconds)</label>
+            <label for="monitor-interval" class="form-label"
+              >Scan Interval (seconds)</label
+            >
             <input
               type="number"
               class="form-control"
@@ -297,7 +310,9 @@
               </div>
               <div>
                 <strong>Monitoring active</strong>
-                <p class="mb-0" id="monitoring-info">Scanning for new devices...</p>
+                <p class="mb-0" id="monitoring-info">
+                  Scanning for new devices...
+                </p>
                 <p class="mb-0 mt-2">
                   <span id="new-devices-count">0</span> new devices detected
                 </p>
@@ -307,21 +322,76 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="stop-monitoring-btn" disabled>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          id="stop-monitoring-btn"
+          disabled
+        >
           Stop Monitoring
         </button>
-        <button type="button" class="btn btn-primary" id="start-monitoring-modal-btn">
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="start-monitoring-modal-btn"
+        >
           Start Monitoring
         </button>
       </div>
     </div>
   </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
+{% endblock %} {% block extra_js %}
 <script>
   $(document).ready(function () {
+    // Load unauthorized devices for the unauthorized devices card
+    function loadUnauthorizedDevices() {
+      $.ajax({
+        url: "/api/devices/unauthorized/",
+        type: "GET",
+        success: function (data) {
+          const unauthorizedList = $("#unauthorized-devices-list");
+          
+          if (data.length === 0) {
+            unauthorizedList.html('<li class="list-group-item text-center">No unauthorized devices</li>');
+            return;
+          }
+          
+          let listContent = '';
+          data.forEach(function(device) {
+            listContent += `
+              <li class="list-group-item list-group-item-danger">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 class="mb-1">${device.hostname || 'Unknown'}</h6>
+                    <small>${device.ip_address}</small>
+                  </div>
+                  <button class="btn btn-sm btn-outline-success add-to-whitelist" data-ip="${device.ip_address}" data-hostname="${device.hostname || 'Unknown'}">
+                    <i class="fas fa-plus-circle"></i>
+                  </button>
+                </div>
+                <small class="text-muted">${device.mac_address || 'MAC unknown'}</small>
+              </li>
+            `;
+          });
+          
+          unauthorizedList.html(listContent);
+          
+          // Attach event handler to whitelist buttons
+          $(".add-to-whitelist").click(function() {
+            const ip = $(this).data("ip");
+            const hostname = $(this).data("hostname");
+            addToWhitelist(ip, hostname);
+          });
+        },
+        error: function () {
+          $("#unauthorized-devices-list").html(
+            '<li class="list-group-item text-center text-danger">Error loading unauthorized devices</li>'
+          );
+        }
+      });
+    }
+    
     // Load devices
     function loadDevices() {
       $.ajax({
@@ -330,42 +400,74 @@
         success: function (data) {
           let tableContent = "";
           let portsCount = 0;
+          
+          // Create a set of whitelisted IPs to check against
+          let whitelistedIPs = new Set();
+          
+          // Load whitelist
+          $.ajax({
+            url: "/api/ip-whitelist/",
+            type: "GET",
+            async: false, // Make this synchronous to ensure it completes before using the set
+            success: function(whitelist) {
+              whitelist.forEach(function(entry) {
+                if (entry.is_active) {
+                  whitelistedIPs.add(entry.ip_address);
+                }
+              });
+            }
+          });
 
           if (data.length === 0) {
             tableContent =
               '<tr><td colspan="5" class="text-center">No devices found</td></tr>';
           } else {
+            // Track unauthorized devices
+            let unauthorizedDevices = [];
+            
             data.forEach(function (device) {
+              // Count open ports
               portsCount += device.ports.length;
+              
+              // Check if device is unauthorized (not in whitelist)
+              const isAuthorized = whitelistedIPs.has(device.ip_address);
+              if (!isAuthorized) {
+                unauthorizedDevices.push(device);
+              }
+              
               tableContent += `
-                                <tr>
-                                    <td>${device.ip_address}</td>
-                                    <td>${device.hostname || "Unknown"}</td>
-                                    <td>${device.mac_address || "N/A"}</td>
-                                    <td>
-                                        <span class="status-badge ${
-                                          device.status === "active"
-                                            ? "bg-success"
-                                            : "bg-secondary"
-                                        }">
-                                            ${device.status}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <a href="/devices/${
-                                          device.id
-                                        }/" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <button class="btn btn-sm btn-outline-info scan-ports-btn" data-ip="${
-                                          device.ip_address
-                                        }">
-                                            <i class="fas fa-search"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            `;
+                <tr class="${!isAuthorized ? 'table-danger' : ''}">
+                    <td>${device.ip_address}</td>
+                    <td>${device.hostname || "Unknown"}</td>
+                    <td>${device.mac_address || "N/A"}</td>
+                    <td>
+                        <span class="status-badge ${
+                          device.status === "active"
+                            ? "bg-success"
+                            : "bg-secondary"
+                        }">
+                            ${device.status}
+                        </span>
+                        ${!isAuthorized ? '<span class="badge bg-danger ms-1">Unauthorized</span>' : ''}
+                    </td>
+                    <td>
+                        <a href="/devices/${
+                          device.id
+                        }/" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <button class="btn btn-sm btn-outline-info scan-ports-btn" data-ip="${
+                          device.ip_address
+                        }">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </td>
+                </tr>
+              `;
             });
+            
+            // Update unauthorized devices list
+            updateUnauthorizedDevicesList(unauthorizedDevices);
           }
 
           $("#devices-table-body").html(tableContent);
@@ -384,6 +486,71 @@
         },
       });
     }
+    
+    // Function to update the unauthorized devices list
+    function updateUnauthorizedDevicesList(devices) {
+      const unauthorizedList = $("#unauthorized-devices-list");
+      
+      if (devices.length === 0) {
+        unauthorizedList.html('<li class="list-group-item text-center">No unauthorized devices</li>');
+        return;
+      }
+      
+      let listContent = '';
+      devices.forEach(function(device) {
+        listContent += `
+          <li class="list-group-item list-group-item-danger">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="mb-1">${device.hostname || 'Unknown'}</h6>
+                <small>${device.ip_address}</small>
+              </div>
+              <button class="btn btn-sm btn-outline-success add-to-whitelist" data-ip="${device.ip_address}" data-hostname="${device.hostname || 'Unknown'}">
+                <i class="fas fa-plus-circle"></i>
+              </button>
+            </div>
+            <small class="text-muted">${device.mac_address || 'MAC unknown'}</small>
+          </li>
+        `;
+      });
+      
+      unauthorizedList.html(listContent);
+      
+      // Attach event handler to whitelist buttons
+      $(".add-to-whitelist").click(function() {
+        const ip = $(this).data("ip");
+        const hostname = $(this).data("hostname");
+        addToWhitelist(ip, hostname);
+      });
+    }
+    
+    // Function to add a device to the whitelist
+    function addToWhitelist(ip, hostname) {
+      if (!confirm(`Add ${ip} (${hostname}) to whitelist?`)) {
+        return;
+      }
+      
+      $.ajax({
+        url: "/api/ip-whitelist/",
+        type: "POST",
+        contentType: "application/json",
+        headers: {
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val(),
+        },
+        data: JSON.stringify({
+          ip_address: ip,
+          description: `Added from dashboard: ${hostname}`,
+          is_active: true
+        }),
+        success: function() {
+          alert(`${ip} has been added to the whitelist`);
+          loadDevices(); // Refresh the devices list
+        },
+        error: function() {
+          alert(`Failed to add ${ip} to the whitelist. Please try again.`);
+        }
+      });
+    }
 
     // Start network scan
     $("#start-scan-btn").click(function () {
@@ -393,13 +560,13 @@
       $("#scan-form").addClass("d-none");
       $("#scan-progress").removeClass("d-none");
       $("#scan-results").addClass("d-none");
-      $("#start-scan-btn").prop("disabled", true);      // Make API call
+      $("#start-scan-btn").prop("disabled", true); // Make API call
       $.ajax({
         url: "/api/devices/discover/",
         type: "POST",
         contentType: "application/json",
         headers: {
-          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val(),
         },
         data: JSON.stringify({ network_range: networkRange }),
         success: function (data) {
@@ -439,12 +606,13 @@
     function scanPorts(ip) {
       if (!confirm(`Scan ports on ${ip}?`)) {
         return;
-      }      $.ajax({
+      }
+      $.ajax({
         url: "/api/ports/scan/",
         type: "POST",
         contentType: "application/json",
         headers: {
-          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val(),
         },
         data: JSON.stringify({ target: ip }),
         success: function (data) {
@@ -460,132 +628,144 @@
     // Network monitoring functionality
     let monitoringInterval;
     let newDevicesDetected = 0;
-    
+
     // Show monitoring modal when button is clicked
-    $("#start-monitoring-btn").click(function() {
+    $("#start-monitoring-btn").click(function () {
       $("#monitoringModal").modal("show");
     });
-    
+
     // Start monitoring when confirmed in modal
-    $("#start-monitoring-modal-btn").click(function() {
+    $("#start-monitoring-modal-btn").click(function () {
       const networkRange = $("#monitor-network-range").val();
       const interval = parseInt($("#monitor-interval").val());
-      
+
       if (interval < 30) {
         alert("Please set an interval of at least 30 seconds.");
         return;
       }
-      
+
       // Show monitoring status
       $("#monitoring-form").addClass("d-none");
       $("#monitoring-status").removeClass("d-none");
       $("#start-monitoring-modal-btn").prop("disabled", true);
       $("#stop-monitoring-btn").prop("disabled", false);
-      
+
       // Start monitoring at specified interval
       runNetworkMonitoring(networkRange);
-      monitoringInterval = setInterval(function() {
+      monitoringInterval = setInterval(function () {
         runNetworkMonitoring(networkRange);
       }, interval * 1000);
     });
-    
+
     // Stop monitoring
-    $("#stop-monitoring-btn").click(function() {
+    $("#stop-monitoring-btn").click(function () {
       clearInterval(monitoringInterval);
-      
+
       $("#monitoring-form").removeClass("d-none");
       $("#monitoring-status").addClass("d-none");
       $("#start-monitoring-modal-btn").prop("disabled", false);
       $("#stop-monitoring-btn").prop("disabled", true);
-      
+
       $("#monitoring-info").text("Scanning for new devices...");
       newDevicesDetected = 0;
       $("#new-devices-count").text("0");
-    });
-    
-    // Function to perform network monitoring scan
+    });    // Function to perform network monitoring scan
     function runNetworkMonitoring(networkRange) {
       $("#monitoring-info").text("Scanning network " + networkRange + "...");
-      
+
       $.ajax({
         url: "/api/devices/monitor/",
         type: "POST",
         contentType: "application/json",
         headers: {
-          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
+          "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val(),
         },
         data: JSON.stringify({ network_range: networkRange }),
-        success: function(data) {
+        success: function (data) {
           const timestamp = new Date().toLocaleTimeString();
           $("#monitoring-info").text("Last scan: " + timestamp);
+
+          // Update monitoring info with more details
+          let monitoringDetails = "";
           
           if (data.new_devices && data.new_devices.length > 0) {
             newDevicesDetected += data.new_devices.length;
             $("#new-devices-count").text(newDevicesDetected);
-            
-            // Update the alerts list if there are new alerts
-            refreshAlerts();
-            
-            // Update devices table
-            loadDevices();
+            monitoringDetails += `New devices: ${data.new_devices.length} `;
           }
+          
+          if (data.unauthorized_devices && data.unauthorized_devices.length > 0) {
+            monitoringDetails += `⚠️ Unauthorized: ${data.unauthorized_devices.length}`;
+          }
+          
+          if (monitoringDetails) {
+            $("#monitoring-info").text(`Last scan: ${timestamp} - ${monitoringDetails}`);
+          }
+
+          // Update the alerts list if there are new alerts
+          if (data.alerts_generated > 0) {
+            refreshAlerts();
+          }          // Always update devices table and unauthorized devices after monitoring
+          loadDevices();
+          loadUnauthorizedDevices();
         },
-        error: function() {
+        error: function () {
           $("#monitoring-info").text("Error during network scan");
-        }
+        },
       });
     }
-    
+
     // Function to refresh alerts
     function refreshAlerts() {
       $.ajax({
         url: "/api/alerts/unread/",
         type: "GET",
-        success: function(data) {
+        success: function (data) {
           // Update unread counter in the navbar
           const unreadCount = data.length;
           $("#alert-count").text(unreadCount);
-          
+
           if (unreadCount > 0) {
             $("#alert-count").show();
           } else {
             $("#alert-count").hide();
           }
-          
+
           // Refresh alerts list on dashboard
           const alertsList = $("#alerts-list");
           if (alertsList.length > 0) {
-            let alertsHtml = '';
-            
+            let alertsHtml = "";
+
             if (data.length === 0) {
-              alertsHtml = '<li class="list-group-item text-center">No recent alerts</li>';
+              alertsHtml =
+                '<li class="list-group-item text-center">No recent alerts</li>';
             } else {
               // Only show the 5 most recent alerts
               const recentAlerts = data.slice(0, 5);
-              
-              recentAlerts.forEach(function(alert) {
-                let severityClass = '';
-                if (alert.severity === 'critical') {
-                  severityClass = 'bg-danger';
-                } else if (alert.severity === 'warning') {
-                  severityClass = 'bg-warning';
+
+              recentAlerts.forEach(function (alert) {
+                let severityClass = "";
+                if (alert.severity === "critical") {
+                  severityClass = "bg-danger";
+                } else if (alert.severity === "warning") {
+                  severityClass = "bg-warning";
                 } else {
-                  severityClass = 'bg-info';
+                  severityClass = "bg-info";
                 }
-                
-                let alertTypeDisplay = '';
-                if (alert.alert_type === 'new_device') {
-                  alertTypeDisplay = 'New Device Detected';
-                } else if (alert.alert_type === 'status_change') {
-                  alertTypeDisplay = 'Device Status Change';
-                } else if (alert.alert_type === 'port_change') {
-                  alertTypeDisplay = 'Open Port Change';
+
+                let alertTypeDisplay = "";
+                if (alert.alert_type === "new_device") {
+                  alertTypeDisplay = "New Device Detected";
+                } else if (alert.alert_type === "status_change") {
+                  alertTypeDisplay = "Device Status Change";
+                } else if (alert.alert_type === "port_change") {
+                  alertTypeDisplay = "Open Port Change";
                 } else {
-                  alertTypeDisplay = 'Security Alert';
+                  alertTypeDisplay = "Security Alert";
                 }
-                
+
                 const timestamp = new Date(alert.timestamp).toLocaleString();
-                
+
                 alertsHtml += `
                   <li class="list-group-item list-group-item-warning">
                     <div class="d-flex justify-content-between align-items-center">
@@ -594,8 +774,13 @@
                         <small>${alert.message}</small>
                       </div>
                       <span class="badge ${severityClass}">
-                        ${alert.severity === 'critical' ? 'Critical' : 
-                          alert.severity === 'warning' ? 'Warning' : 'Info'}
+                        ${
+                          alert.severity === "critical"
+                            ? "Critical"
+                            : alert.severity === "warning"
+                            ? "Warning"
+                            : "Info"
+                        }
                       </span>
                     </div>
                     <small class="text-muted">${timestamp}</small>
@@ -603,15 +788,20 @@
                 `;
               });
             }
-            
+
             alertsList.html(alertsHtml);
           }
-        }
+        },
       });
-    }
-
-    // Load initial data
+    }    // Load initial data
     loadDevices();
+    loadUnauthorizedDevices();
+    
+    // Refresh data every 60 seconds
+    setInterval(function() {
+      loadDevices();
+      loadUnauthorizedDevices();
+    }, 60000);
   });
 </script>
 

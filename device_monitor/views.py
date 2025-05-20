@@ -3,33 +3,30 @@ from django.http import JsonResponse
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.forms import UserCreationForm
+from django.urls import reverse_lazy
+from django.views import generic
 
 from .models import Device, Port, ScanHistory, Alert, IPWhitelist
 from .serializers import DeviceSerializer, PortSerializer, ScanHistorySerializer, IPWhitelistSerializer
 from .utils import NetworkScanner
 
 # Web views
+@login_required
 def dashboard(request):
     """Main dashboard view"""
-    # Get whitelisted IPs
-    whitelisted_ips = set(ip.ip_address for ip in IPWhitelist.objects.filter(is_active=True))
-    
-    # Get devices not in whitelist
-    all_devices = Device.objects.all()
-    unauthorized_devices = [device for device in all_devices if device.ip_address not in whitelisted_ips]
-    
     context = {
-        'devices_count': all_devices.count(),
+        'devices_count': Device.objects.count(),
         'active_devices': Device.objects.filter(status='active').count(),
         'recent_scans': ScanHistory.objects.all()[:5],
         'recent_alerts': Alert.objects.all().order_by('-timestamp')[:5],
-        'unauthorized_count': len(unauthorized_devices),
-        'recent_unauthorized': unauthorized_devices[:5],
-        'whitelisted_count': IPWhitelist.objects.filter(is_active=True).count(),
         'unread_count': Alert.objects.filter(is_read=False).count()
     }
     return render(request, 'device_monitor/dashboard.html', context)
 
+@login_required
 def device_list(request):
     """View for displaying all devices"""
     context = {
@@ -38,6 +35,7 @@ def device_list(request):
     }
     return render(request, 'device_monitor/device_list.html', context)
 
+@login_required
 def device_detail(request, device_id):
     """View for displaying device details"""
     device = Device.objects.get(id=device_id)
@@ -48,6 +46,7 @@ def device_detail(request, device_id):
     }
     return render(request, 'device_monitor/device_detail.html', context)
 
+@login_required
 def scan_history(request):
     """View for displaying scan history"""
     context = {
@@ -56,6 +55,7 @@ def scan_history(request):
     }
     return render(request, 'device_monitor/scan_history.html', context)
 
+@login_required
 def device_alerts(request):
     """View for displaying device alerts"""
     context = {
@@ -64,6 +64,7 @@ def device_alerts(request):
     }
     return render(request, 'device_monitor/device_alerts.html', context)
 
+@login_required
 def ip_whitelist(request):
     """View for managing IP whitelist"""
     context = {
@@ -73,10 +74,24 @@ def ip_whitelist(request):
     return render(request, 'device_monitor/ip_whitelist.html', context)
 
 # API viewsets
-class DeviceViewSet(viewsets.ModelViewSet):
+class DeviceViewSet(LoginRequiredMixin, viewsets.ModelViewSet):
     """API endpoint for devices"""
     queryset = Device.objects.all()
     serializer_class = DeviceSerializer
+    
+    @action(detail=False, methods=['get'])
+    def unauthorized(self, request):
+        """Get unauthorized devices (devices not in the whitelist)"""
+        # Get all whitelisted IP addresses
+        whitelisted_ips = set(
+            IPWhitelist.objects.filter(is_active=True).values_list('ip_address', flat=True)
+        )
+        
+        # Filter devices that are not in the whitelist
+        unauthorized_devices = Device.objects.exclude(ip_address__in=whitelisted_ips)
+        serializer = self.get_serializer(unauthorized_devices, many=True)
+        
+        return Response(serializer.data)
     
     @action(detail=False, methods=['post'])
     def discover(self, request):
@@ -103,6 +118,7 @@ class DeviceViewSet(viewsets.ModelViewSet):
                 'success': True, 
                 'devices_found': results['total_devices'],
                 'new_devices': results['new_devices'],
+                'unauthorized_devices': results['unauthorized_devices'],
                 'alerts_generated': results['alerts_generated']
             })
         except Exception as e:
@@ -111,7 +127,7 @@ class DeviceViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-class PortViewSet(viewsets.ModelViewSet):
+class PortViewSet(LoginRequiredMixin, viewsets.ModelViewSet):
     """API endpoint for ports"""
     queryset = Port.objects.all()
     serializer_class = PortSerializer
@@ -159,12 +175,12 @@ class PortViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-class ScanHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+class ScanHistoryViewSet(LoginRequiredMixin, viewsets.ReadOnlyModelViewSet):
     """API endpoint for scan history"""
     queryset = ScanHistory.objects.all()
     serializer_class = ScanHistorySerializer
 
-class AlertViewSet(viewsets.ModelViewSet):
+class AlertViewSet(LoginRequiredMixin, viewsets.ModelViewSet):
     """API endpoint for alerts"""
     queryset = Alert.objects.all().order_by('-timestamp')
     
@@ -203,7 +219,7 @@ class AlertViewSet(viewsets.ModelViewSet):
         ]
         return Response(data)
         
-class IPWhitelistViewSet(viewsets.ModelViewSet):
+class IPWhitelistViewSet(LoginRequiredMixin, viewsets.ModelViewSet):
     """API endpoint for IP whitelist management"""
     queryset = IPWhitelist.objects.all()
     serializer_class = IPWhitelistSerializer
@@ -231,3 +247,8 @@ class IPWhitelistViewSet(viewsets.ModelViewSet):
             return super().partial_update(request, *args, **kwargs)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class SignUpView(generic.CreateView):
+    form_class = UserCreationForm
+    success_url = reverse_lazy('login') # Redirect to login page after successful signup
+    template_name = 'registration/signup.html'

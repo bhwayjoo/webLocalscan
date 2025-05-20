@@ -127,7 +127,8 @@
                 href="{% url 'device_list' %}"
               >
                 <i class="fas fa-server me-2"></i> Devices
-              </a>            </li>
+              </a>
+            </li>
             <li class="nav-item">
               <a
                 class="nav-link {% if '/scan-history/' in request.path %}active{% endif %}"
@@ -140,10 +141,10 @@
               <a
                 class="nav-link {% if '/alerts/' in request.path %}active{% endif %}"
                 href="{% url 'device_alerts' %}"
-              >
-                <i class="fas fa-bell me-2"></i> Alerts
-                {% if unread_count > 0 %}
-                <span id="alert-count" class="badge rounded-pill bg-danger">{{ unread_count }}</span>
+              >                <i class="fas fa-bell me-2"></i> Alerts {% if unread_count > 0 %}
+                <span id="alert-count" class="badge rounded-pill bg-danger"
+                  >{{ unread_count }}</span
+                >
                 {% endif %}
               </a>
             </li>

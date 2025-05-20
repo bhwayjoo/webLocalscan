@@ -21,6 +21,8 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/', include('django.contrib.auth.urls')),  # Django auth urls (login, logout, password_reset, etc.)
+    path('accounts/', include('device_monitor.urls')),  # Include your app's auth-related URLs (like signup)
     path('', include('device_monitor.urls')),
     path('api-auth/', include('rest_framework.urls')),
 ]
