@@ -161,6 +161,16 @@
                 <i class="fas fa-cog me-2"></i> Admin
               </a>
             </li>
+            {% if user.is_authenticated %}
+            <li class="nav-item">
+              <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
+                {% csrf_token %}
+              </form>
+              <a class="nav-link" href="#" onclick="document.getElementById('logout-form').submit(); return false;">
+                <i class="fas fa-sign-out-alt me-2"></i> Logout
+              </a>
+            </li>
+            {% endif %}
           </ul>
         </div>
 
